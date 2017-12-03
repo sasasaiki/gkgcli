@@ -3,9 +3,12 @@ package main
 import (
 	"fmt"
 	"go/build"
+	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/codegangsta/cli"
 )
@@ -58,27 +61,32 @@ func newAction(c *cli.Context) {
 	// }
 
 	// パラメータ
-	var paramFirst = ""
+	var projectPath = ""
 	if len(c.Args()) <= 0 {
 		fmt.Println("作成するプロジェクトPathを渡してください")
 		return
 	}
-	paramFirst = c.Args().First() // c.Args()[0] と同じ意味
+	projectPath = c.Args().First() // c.Args()[0] と同じ意味
 
-	projectPath := getGoSrcRoot() + "/" + paramFirst
+	projectPathWithGoRoot := getGoSrcRoot() + "/" + projectPath
 
-	err := makeDir(projectPath)
+	err := makeDir(projectPathWithGoRoot)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	err = cloneGokigen(projectPath)
+	err = cloneGokigen(projectPathWithGoRoot)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
+	replacePathInFiles(projectPathWithGoRoot, projectPath)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 }
 
 func getGoSrcRoot() string {
@@ -125,4 +133,60 @@ func existFile(path string) bool {
 
 func printlnf(s string, param interface{}) {
 	fmt.Println(fmt.Sprintf(s, param))
+}
+
+func replacePathInFiles(path, projectPath string) {
+	fileNameList := dirwalk(path, []string{})
+	for _, file := range fileNameList {
+		fmt.Println(file)
+		replacePathInFile(file, projectPath)
+	}
+}
+
+// 対象のファイルを取得する
+func getFileNames(dir string) (matches []string) {
+	files, _ := filepath.Glob(dir + "/*.go")
+	files2, _ := filepath.Glob(dir + "/*.yaml")
+
+	return append(files, files2...)
+}
+
+func dirwalk(dir string, paths []string) []string {
+	files, err := ioutil.ReadDir(dir)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, file := range files {
+		if file.IsDir() {
+			paths = dirwalk(filepath.Join(dir, file.Name()), paths)
+		}
+	}
+
+	f := getFileNames(filepath.Join(dir))
+	return append(paths, f...)
+}
+
+// 書き込み処理を行う
+func replacePathInFile(filename, projectPath string) {
+	input, err := ioutil.ReadFile(filename)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	lines := strings.Split(string(input), "\n")
+
+	const origin = "github.com/sasasaiki/gokigen"
+	fmt.Println(projectPath)
+	for i, line := range lines {
+		fmt.Println(line)
+		lines[i] = strings.Replace(line, origin, projectPath, -1)
+		fmt.Println(lines[i])
+	}
+
+	output := strings.Join(lines, "\n")
+	err = ioutil.WriteFile(filename, []byte(output), 0644)
+	if err != nil {
+		log.Fatalln(err)
+	}
 }

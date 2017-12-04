@@ -87,6 +87,11 @@ func newAction(c *cli.Context) {
 		fmt.Println(err)
 		return
 	}
+
+	if err := os.RemoveAll(projectPathWithGoRoot + "/.git"); err != nil {
+		fmt.Println(err)
+		return
+	}
 }
 
 func getGoSrcRoot() string {

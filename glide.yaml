@@ -1,4 +1,4 @@
-package: github.com/sasasaiki/gokigen-cli
+package: github.com/sasasaiki/gkgcli
 import:
 - package: github.com/codegangsta/cli
   version: ^1.20.0

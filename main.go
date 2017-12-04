@@ -15,7 +15,7 @@ import (
 
 func main() {
 	app := cli.NewApp()
-	app.Name = "gokigen-cli"
+	app.Name = "gkgcli"
 	app.Usage = "Webアプリケーションテンプレートgokigenのコマンドラインツールです"
 	app.Version = "1.0.0"
 

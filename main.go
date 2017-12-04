@@ -143,7 +143,6 @@ func printlnf(s string, param interface{}) {
 func replacePathInFiles(path, projectPath string) {
 	fileNameList := dirwalk(path, []string{})
 	for _, file := range fileNameList {
-		fmt.Println(file)
 		replacePathInFile(file, projectPath)
 	}
 }
@@ -182,11 +181,8 @@ func replacePathInFile(filename, projectPath string) {
 	lines := strings.Split(string(input), "\n")
 
 	const origin = "github.com/sasasaiki/gokigen"
-	fmt.Println(projectPath)
 	for i, line := range lines {
-		fmt.Println(line)
 		lines[i] = strings.Replace(line, origin, projectPath, -1)
-		fmt.Println(lines[i])
 	}
 
 	output := strings.Join(lines, "\n")

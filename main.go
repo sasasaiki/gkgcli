@@ -101,6 +101,11 @@ func newAction(c *cli.Context) {
 		fmt.Println(err)
 		return
 	}
+
+	if err := replaceLicenceInfo(projectPathWithGoRoot); err != nil {
+		fmt.Println(err)
+		return
+	}
 }
 
 func makeDir(path string) error {
@@ -153,4 +158,9 @@ func overWriteREADME(path, project string) error {
 	}
 
 	return nil
+}
+
+func replaceLicenceInfo(path string) error {
+	e := gkgfiler.ReplaceText(path+"/LICENCE", "Copyright (c) 2017, saiki", "Copyright (c) *year (e.g. 2017)* , *developer name*", 0777)
+	return e
 }

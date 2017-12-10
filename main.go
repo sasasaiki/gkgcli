@@ -97,7 +97,7 @@ func newAction(c *cli.Context) {
 		return
 	}
 
-	if err := overWriteLience(projectPathWithGoRoot, projectPath); err != nil {
+	if err := overWriteREADME(projectPathWithGoRoot, projectPath); err != nil {
 		fmt.Println(err)
 		return
 	}
@@ -146,7 +146,7 @@ func replacePathInFiles(path, projectPath string) error {
 	return nil
 }
 
-func overWriteLience(path, project string) error {
+func overWriteREADME(path, project string) error {
 	e := gkgfiler.WriteText(path+"/README.md", "# "+project, false, 0777)
 	if e != nil {
 		return e

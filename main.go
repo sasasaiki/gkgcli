@@ -2,16 +2,14 @@ package main
 
 import (
 	"fmt"
-	"go/build"
-	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"strings"
 
 	"github.com/codegangsta/cli"
+	"github.com/sasasaiki/gkgfiler"
 )
+
+const gokigenRepo = "https://github.com/sasasaiki/gokigen.git"
 
 func main() {
 	app := cli.NewApp()
@@ -68,9 +66,15 @@ func newAction(c *cli.Context) {
 	}
 	projectPath = c.Args().First() // c.Args()[0] と同じ意味
 
-	projectPathWithGoRoot := getGoSrcRoot() + "/" + projectPath
+	gosrc, err := gkgfiler.GetGoSrcPath()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
-	err := makeDir(projectPathWithGoRoot)
+	projectPathWithGoRoot := gosrc + "/" + projectPath
+
+	err = makeDir(projectPathWithGoRoot)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -92,25 +96,19 @@ func newAction(c *cli.Context) {
 		fmt.Println(err)
 		return
 	}
-}
 
-func getGoSrcRoot() string {
-	// lookup go path
-	gopath := build.Default.GOPATH
-	if gopath == "" {
-		fmt.Println("GOPATH が設定されていません.bash_profileなど$GOPATHを設定してください")
+	if err := overWriteLience(projectPathWithGoRoot, projectPath); err != nil {
+		fmt.Println(err)
+		return
 	}
-	//  取得した$GOPATHが:つなぎなどで複数設定されていたら一番先頭を使う。
-	srcRoot := filepath.Join(filepath.SplitList(gopath)[0], "src")
-	return srcRoot
 }
 
 func makeDir(path string) error {
 	fmt.Println("make " + path)
-	if existFile(path) {
+	if gkgfiler.Exist(path) {
 		return fmt.Errorf("failed mkdir. dir has been exist : %v", path)
 	}
-	err := exec.Command("mkdir", path).Run()
+	err := os.MkdirAll(path, 0777)
 	if err != nil {
 		printlnf("failed mkdir path : %v", path)
 	}
@@ -119,8 +117,8 @@ func makeDir(path string) error {
 
 func cloneGokigen(path string) error {
 	printlnf("cloning gokigen to : %v ...", path)
-	const repo = "https://github.com/sasasaiki/gokigen.git"
-	err := exec.Command("git", "clone", repo, path).Run()
+
+	err := exec.Command("git", "clone", gokigenRepo, path).Run()
 	if err != nil {
 		printlnf("failed clone : %v", path)
 		return err
@@ -128,66 +126,31 @@ func cloneGokigen(path string) error {
 	return err
 }
 
-func existFile(path string) bool {
-	_, e := os.Stat(path)
-	if e != nil {
-		return false
-	}
-	return true
-}
-
 func printlnf(s string, param interface{}) {
 	fmt.Println(fmt.Sprintf(s, param))
 }
 
-func replacePathInFiles(path, projectPath string) {
-	fileNameList := dirwalk(path, []string{})
+func replacePathInFiles(path, projectPath string) error {
+	fileNameList, e := gkgfiler.GetPathsRecurcive(path, false, "*")
+	if e != nil {
+		return e
+	}
+
 	for _, file := range fileNameList {
-		replacePathInFile(file, projectPath)
+		e = gkgfiler.ReplaceText(file, "github.com/sasasaiki/gokigen", projectPath, 0777)
 	}
+	if e != nil {
+		return e
+	}
+
+	return nil
 }
 
-// 対象のファイルを取得する
-func getFileNames(dir string) (matches []string) {
-	files, _ := filepath.Glob(dir + "/*.go")
-	files2, _ := filepath.Glob(dir + "/*.yaml")
-
-	return append(files, files2...)
-}
-
-func dirwalk(dir string, paths []string) []string {
-	files, err := ioutil.ReadDir(dir)
-	if err != nil {
-		panic(err)
+func overWriteLience(path, project string) error {
+	e := gkgfiler.WriteText(path+"/README.md", "# "+project, false, 0777)
+	if e != nil {
+		return e
 	}
 
-	for _, file := range files {
-		if file.IsDir() {
-			paths = dirwalk(filepath.Join(dir, file.Name()), paths)
-		}
-	}
-
-	f := getFileNames(filepath.Join(dir))
-	return append(paths, f...)
-}
-
-// 書き込み処理を行う
-func replacePathInFile(filename, projectPath string) {
-	input, err := ioutil.ReadFile(filename)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	lines := strings.Split(string(input), "\n")
-
-	const origin = "github.com/sasasaiki/gokigen"
-	for i, line := range lines {
-		lines[i] = strings.Replace(line, origin, projectPath, -1)
-	}
-
-	output := strings.Join(lines, "\n")
-	err = ioutil.WriteFile(filename, []byte(output), 0644)
-	if err != nil {
-		log.Fatalln(err)
-	}
+	return nil
 }
